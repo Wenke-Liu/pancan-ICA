@@ -39,11 +39,10 @@ def multi_ica(data,
     return s_list, a_list, i_repeats, i_comps
 
 
-def dis_cal(s_list, name='ics', save_dis=True, metric='cosine'):
-    ics = np.hstack(tuple(s_list)).T
-    dis = pairwise_distances(ics, metric=metric, njobs=-1)
+def dis_cal(ics, metric='cosine', name='ics', save_dis=True, out_dir='.'):
+    dis = pairwise_distances(ics, metric=metric, n_jobs=-1)
     if save_dis:
-        hf = h5py.File(name + 'dis.h5', 'w')
+        hf = h5py.File(out_dir + '/' + name + '_dis.h5', 'w')
         hf.create_dataset('dis', data=dis)
         hf.close()
     return dis
@@ -51,15 +50,16 @@ def dis_cal(s_list, name='ics', save_dis=True, metric='cosine'):
 
 def ic_cluster(dis,
                name='ics',
+               min_cluster_size=5,
                show_plt=False,
                save_plt=True,
                figsize=5,
-               save_output=True):
+               out_dir='.'):
 
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=5, metric='precomputed')
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric='precomputed')
     clusterer.fit(dis)
     ics_cls = clusterer.labels_.reshape((clusterer.labels_.shape[0], 1))
-    tsne_embedding = TSNE(n_components=2, metric='precomputed')  #tSNE
+    tsne_embedding = TSNE(n_components=2, metric='precomputed')  # tSNE
     ics_tsne = tsne_embedding.fit_transform(dis)
     mds_embedding = MDS(dissimilarity='precomputed')  # MDS
     ics_mds = mds_embedding.fit_transform(dis)
@@ -76,8 +76,67 @@ def ic_cluster(dis,
     if show_plt:
         plt.show()
     if save_plt:
-        plt.savefig(fname=name + '.png')
-    if save_output:
-        np.savetxt(fname=name + '_clustered.txt', X=ics_pts, delimiter='\t', comments='',
-                   header = '\t'.join(['tsne_1', 'tsne_2', 'mds_1','mds_2', 'cls_lab']))
+        plt.savefig(fname=out_dir + '/' + name + '.png')
 
+    return ics_pts
+
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(description='ICA')
+    parser.add_argument('--data_dir', type=str, default='.', help='Path to data table.')
+    parser.add_argument('--out_dir', type=str, default='.', help='Path to outputs.')
+    parser.add_argument('--exp_prefix', type=str, default=None, help='Prefix of outputs files.')
+    parser.add_argument('--n_repeats', type=int, default=100, help='Number of randomly initiated runs.')
+    parser.add_argument('--n_components', type=int, default=None, help='Number of components extracted.')
+    parser.add_argument('--exp_seed', type=int, default=None, help='Seed for the experiment, integer.')
+
+    args = parser.parse_args()
+    for arg in vars(args):
+        print(arg, getattr(args, arg))
+
+    data = pd.read_csv(args.data_dir, sep='\t', header=0, index_col=0)
+    s_list, a_list, i_repeats, i_comps = multi_ica(data=data,
+                                                   n_components=args.n_components,
+                                                   n_repeats=args.n_repeats,
+                                                   seed=args.exp_seed)
+    ics = np.hstack(tuple(s_list)).T  # ics shape: n_components*n_repeats, n_genes
+    mixs = np.hstack(tuple(a_list)).T  # mixs shape: n_components*n_repeats, n_samples
+    dis = dis_cal(ics=ics, name=args.exp_prefix, out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
+
+    ics_pts = ic_cluster(dis=dis, name=args.exp_prefix,  # cluster assignment
+                         min_cluster_size=int(args.n_repeats*0.5),
+                         out_dir=args.out_dir)
+
+    hf = h5py.File(args.out_dir + '/' + args.exp_prefix + '_ics.h5', 'w')  # save array data as h5 files
+    hf.create_dataset('components', data=ics)
+    hf.create_dataset('mixings', data=mixs)
+
+    ics = pd.DataFrame(data=ics, columns=data.index.values)  # convert to dataframe for future operations
+    mixs = pd.DataFrame(data=mixs, columns=data.columns.values)
+    mixs['i_repeats'] = i_repeats
+    mixs['i_comps'] = i_comps
+    mixs.to_csv(path_or_buf=args.out_dir + '/' + args.exp_prefix + '_all_mixing.tsv',
+                sep='\t', index=False, header=True)
+
+    out_tb = pd.DataFrame(data=ics_pts,
+                          columns=['tsne_1', 'tsne_2', 'mds_1', 'mds_2', 'cls_lab'])
+    out_tb['i_repeats'] = i_repeats
+    out_tb['i_comps'] = i_comps
+    out_tb.to_csv(path_or_buf=args.out_dir + '/' + args.exp_prefix + '_ic_cluster.tsv',
+                  sep='\t', index=False, header=True)
+
+    ics['cluster'] = out_tb['cls_lab']
+    mixs['cluster'] = out_tb['cls_lab']
+
+    mean_mix = pd.pivot_table(mixs, values=data.columns.values, index='cluster', aggfunc=np.mean)
+    mean_mix.to_csv(path_or_buf=args.out_dir + '/' + args.exp_prefix + '_mean_mixing.tsv',
+                  sep='\t', index=True, header=True)
+
+    mean_ic = pd.pivot_table(ics, values=data.index.values, index='cluster', aggfunc=np.mean)
+    mean_ic.T.to_csv(path_or_buf=args.out_dir + '/' + args.exp_prefix + '_mean_components.tsv',
+                    sep='\t', index=True, header=True)
+
+
+if __name__ == "__main__":
+    main()
