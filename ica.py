@@ -13,7 +13,7 @@ from scipy import stats
 
 def multi_ica(data,
               whiten=True,
-              n_components=10,
+              n_components=None,
               n_repeats=100,
               seed=None):
     if seed:
@@ -21,6 +21,10 @@ def multi_ica(data,
         run_seeds = np.random.randint(low=0, high=10000, size=n_repeats)
     else:
         run_seeds = [None] * n_repeats
+
+    if not n_components:
+        n_components = data.shape[1]
+
     comps = [str(i).zfill(3) for i in range(n_components)]
     repeats = [str(i).zfill(3) for i in range(n_repeats)]
     i_repeats = [item for item in repeats for i in range(n_components)]
@@ -103,6 +107,6 @@ def find_cor(mix, clinical):
 
     res = np.array(res)
     res = pd.DataFrame(res, columns=clinical.columns.values, index=mix.index.values)
-    res = pd.concat([mix[['i_repeats','i_comps']], res], axis=1)
+    res = pd.concat([mix[['i_repeats', 'i_comps', 'cluster']], res], axis=1)
     return res
 

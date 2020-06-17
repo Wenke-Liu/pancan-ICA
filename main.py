@@ -31,7 +31,7 @@ def main():
                       out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
 
     ics_pts = ica.ic_cluster(dis=dis, name=args.exp_prefix,  # cluster assignment
-                             min_cluster_size=int(args.n_repeats*0.5),
+                             min_cluster_size=int(args.n_repeats*0.2),
                              out_dir=args.out_dir)
 
     hf = h5py.File(args.out_dir + '/' + args.exp_prefix + '_ics.h5', 'w')  # save array data as h5 files
