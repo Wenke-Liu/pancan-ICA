@@ -44,6 +44,18 @@ def multi_ica(data,
     return s_list, a_list, i_repeats, i_comps
 
 
+def align_tail(s_list, a_list, cutoff=3):
+    ics = np.hstack(tuple(s_list)).T  # ics shape: n_components*n_repeats, n_genes
+    mixs = np.hstack(tuple(a_list)).T  # mixs shape: n_components*n_repeats, n_samples
+    for i in range(ics.shape[0]):
+        ic = ics[i, :]
+        w = mixs[i, :]
+        if sum(ic < (-cutoff)) > sum(ic > cutoff):
+            ics[i, :] = -ic
+            mixs[i, :] = -w
+    return ics, mixs
+
+
 def dis_cal(ics, metric='cosine', name='ics', save_dis=True, out_dir='.'):
     dis = pairwise_distances(ics, metric=metric, n_jobs=-1)
     if save_dis:

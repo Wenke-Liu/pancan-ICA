@@ -25,13 +25,14 @@ def main():
                                                        n_components=args.n_components,
                                                        n_repeats=args.n_repeats,
                                                        seed=args.exp_seed)
-    ics = np.hstack(tuple(s_list)).T  # ics shape: n_components*n_repeats, n_genes
-    mixs = np.hstack(tuple(a_list)).T  # mixs shape: n_components*n_repeats, n_samples
+
+    ics, mixs = ica.align_tail(s_list, a_list)
+
     dis = ica.dis_cal(ics=ics, name=args.exp_prefix,
                       out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
 
     ics_pts = ica.ic_cluster(dis=dis, name=args.exp_prefix,  # cluster assignment
-                             min_cluster_size=int(args.n_repeats*0.2),
+                             min_cluster_size=int(args.n_repeats*0.5),
                              out_dir=args.out_dir)
 
     hf = h5py.File(args.out_dir + '/' + args.exp_prefix + '_ics.h5', 'w')  # save array data as h5 files
