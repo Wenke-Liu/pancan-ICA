@@ -49,7 +49,10 @@ def align_tail(s_list, a_list, cutoff=3):
     mixs = np.hstack(tuple(a_list)).T  # mixs shape: n_components*n_repeats, n_samples
     for i in range(ics.shape[0]):
         ic = ics[i, :]
+        sd = ic.std()
+        ic = ic/sd  # normalize the std of compoments as 1
         w = mixs[i, :]
+        w = w*sd
         if sum(ic < (-cutoff)) > sum(ic > cutoff):
             ics[i, :] = -ic
             mixs[i, :] = -w
