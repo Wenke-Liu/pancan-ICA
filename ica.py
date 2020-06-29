@@ -71,12 +71,13 @@ def dis_cal(ics, metric='cosine', name='ics', save_dis=True, out_dir='.'):
 def ic_cluster(dis,
                name='ics',
                min_cluster_size=5,
+               min_samples=5,
                show_plt=False,
                save_plt=True,
                figsize=5,
                out_dir='.'):
 
-    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, metric='precomputed')
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size, min_samples=min_samples, metric='precomputed')
     clusterer.fit(dis)
     ics_cls = clusterer.labels_.reshape((clusterer.labels_.shape[0], 1))
     tsne_embedding = TSNE(n_components=2, metric='precomputed')  # tSNE
