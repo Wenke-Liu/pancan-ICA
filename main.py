@@ -23,7 +23,7 @@ def main():
 
     data = pd.read_csv(args.data_dir, sep='\t', header=0, index_col=0)
 
-    if not args.save_dir:  # ICA from raw data
+    if not args.saved_dir:  # ICA from raw data
 
         s_list, a_list, i_repeats, i_comps = ica.multi_ica(data=data,
                                                            n_components=args.n_components,
@@ -47,7 +47,7 @@ def main():
                           out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
 
     else:
-        hf = h5py.File(args.save_dir + '/' + args.exp_prefix + '_ics.h5', 'r')
+        hf = h5py.File(args.saved_dir + '/' + args.exp_prefix + '_ics.h5', 'r')
         ics = hf.get('components')
         ics = np.array(ics)
         mixs = hf.get('mixings')
