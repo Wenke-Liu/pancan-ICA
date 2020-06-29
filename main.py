@@ -9,6 +9,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='ICA')
     parser.add_argument('--data_dir', type=str, default='.', help='Path to data table.')
+    parser.add_argument('--saved_dir', type=str, default=None, help='Path to saved intermediate output.')
     parser.add_argument('--clinical_dir', type=str, default=None, help='Path to clinical table')
     parser.add_argument('--out_dir', type=str, default='.', help='Path to outputs.')
     parser.add_argument('--exp_prefix', type=str, default=None, help='Prefix of outputs files.')
@@ -21,28 +22,49 @@ def main():
         print(arg, getattr(args, arg))
 
     data = pd.read_csv(args.data_dir, sep='\t', header=0, index_col=0)
-    s_list, a_list, i_repeats, i_comps = ica.multi_ica(data=data,
-                                                       n_components=args.n_components,
-                                                       n_repeats=args.n_repeats,
-                                                       seed=args.exp_seed)
 
-    ics, mixs = ica.align_tail(s_list, a_list)
+    if not args.save_dir:  # ICA from raw data
 
-    dis = ica.dis_cal(ics=ics, name=args.exp_prefix,
-                      out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
+        s_list, a_list, i_repeats, i_comps = ica.multi_ica(data=data,
+                                                           n_components=args.n_components,
+                                                           n_repeats=args.n_repeats,
+                                                           seed=args.exp_seed)
+
+        ics, mixs = ica.align_tail(s_list, a_list)
+
+        hf = h5py.File(args.out_dir + '/' + args.exp_prefix + '_ics.h5', 'w')  # save array data as h5 files
+        hf.create_dataset('components', data=ics)
+        hf.create_dataset('mixings', data=mixs)
+        hf.create_dataset('i_repeats', data=np.asarray(i_repeats))
+        hf.create_dataset('i_comps', data=np.asarray(i_comps))
+
+        ics = pd.DataFrame(data=ics, columns=data.index.values)  # convert to dataframe for future operations
+        mixs = pd.DataFrame(data=mixs, columns=data.columns.values)
+        mixs['i_repeats'] = i_repeats
+        mixs['i_comps'] = i_comps
+
+        dis = ica.dis_cal(ics=ics, name=args.exp_prefix,
+                          out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
+
+    else:
+        hf = h5py.File(args.save_dir + '/' + args.exp_prefix + '_ics.h5', 'r')
+        ics = hf.get('components')
+        ics = np.array(ics)
+        mixs = hf.get('mixings')
+        mixs = np.array(mixs)
+        i_repeats = hf.get('i_repeats')
+        i_repeats = np.array(i_repeats)
+        i_comps = hf.get('i_comps')
+        i_comps = np.array(i_comps)
+
+        hf2 = h5py.File(args.save_dir + '/' + args.exp_prefix + '_dis.h5', 'r')
+        dis = hf2.get('dis')
+        dis = np.array(dis)
 
     ics_pts = ica.ic_cluster(dis=dis, name=args.exp_prefix,  # cluster assignment
-                             min_cluster_size=int(args.n_repeats*0.5),
+                             min_cluster_size=int(args.n_repeats * 0.5),
+                             min_samples=int(args.n_repeats * 0.2),
                              out_dir=args.out_dir)
-
-    hf = h5py.File(args.out_dir + '/' + args.exp_prefix + '_ics.h5', 'w')  # save array data as h5 files
-    hf.create_dataset('components', data=ics)
-    hf.create_dataset('mixings', data=mixs)
-
-    ics = pd.DataFrame(data=ics, columns=data.index.values)  # convert to dataframe for future operations
-    mixs = pd.DataFrame(data=mixs, columns=data.columns.values)
-    mixs['i_repeats'] = i_repeats
-    mixs['i_comps'] = i_comps
 
     out_tb = pd.DataFrame(data=ics_pts,
                           columns=['tsne_1', 'tsne_2', 'mds_1', 'mds_2', 'cls_lab'])
