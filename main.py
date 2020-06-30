@@ -38,11 +38,6 @@ def main():
         hf.create_dataset('i_repeats', data=np.asarray(i_repeats))
         hf.create_dataset('i_comps', data=np.asarray(i_comps))
 
-        ics = pd.DataFrame(data=ics, columns=data.index.values)  # convert to dataframe for future operations
-        mixs = pd.DataFrame(data=mixs, columns=data.columns.values)
-        mixs['i_repeats'] = i_repeats
-        mixs['i_comps'] = i_comps
-
         dis = ica.dis_cal(ics=ics, name=args.exp_prefix,
                           out_dir=args.out_dir)  # dis shape: symmetrical n_components*n_repeats
 
@@ -57,9 +52,14 @@ def main():
         i_comps = hf.get('i_comps')
         i_comps = np.array(i_comps)
 
-        hf2 = h5py.File(args.save_dir + '/' + args.exp_prefix + '_dis.h5', 'r')
+        hf2 = h5py.File(args.saved_dir + '/' + args.exp_prefix + '_dis.h5', 'r')
         dis = hf2.get('dis')
         dis = np.array(dis)
+
+    ics = pd.DataFrame(data=ics, columns=data.index.values)  # convert to dataframe for future operations
+    mixs = pd.DataFrame(data=mixs, columns=data.columns.values)
+    mixs['i_repeats'] = i_repeats
+    mixs['i_comps'] = i_comps
 
     ics_pts = ica.ic_cluster(dis=dis, name=args.exp_prefix,  # cluster assignment
                              min_cluster_size=int(args.n_repeats * 0.5),

@@ -25,8 +25,8 @@ def multi_ica(data,
     if not n_components:
         n_components = data.shape[1]
 
-    comps = [str(i).zfill(3) for i in range(n_components)]
-    repeats = [str(i).zfill(3) for i in range(n_repeats)]
+    comps = [i for i in range(n_components)]
+    repeats = [i for i in range(n_repeats)]
     i_repeats = [item for item in repeats for i in range(n_components)]
     i_comps = comps * n_repeats
     s_list = []
@@ -87,7 +87,7 @@ def ic_cluster(dis,
 
     ics_pts = np.hstack((ics_tsne, ics_mds, ics_cls))
     plt.figure(figsize=(figsize, figsize))
-    color_palette = sns.color_palette('Paired', 100)
+    color_palette = sns.color_palette('Paired', 1000)
     cluster_colors = [color_palette[x] if x >= 0
                       else (0.5, 0.5, 0.5)
                       for x in clusterer.labels_]
