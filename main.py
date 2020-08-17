@@ -130,15 +130,21 @@ def main():
     mixs['i_comps'] = i_comps
 
     best_param = param[param['ave_sil_sample'] == param['ave_sil_sample'].max()]
+    print('Best parameters: min_cluster, {}, min_samples, {}'.format(best_param['min_cluster_size'].iloc[0],
+                                                                     best_param['min_samples'].iloc[0]))
+
     ics_pts = ica.ic_cluster(dis=dis, name=args.exp_prefix,  # cluster assignment
-                             min_cluster_size=int(best_param['min_cluster_size']),
-                             min_samples=int(best_param['min_samples']),
+                             min_cluster_size=int(best_param['min_cluster_size'].iloc[0]),
+                             min_samples=int(best_param['min_samples'].iloc[0]),
                              out_dir=args.out_dir)
 
     out_tb = pd.DataFrame(data=ics_pts,
                           columns=['tsne_1', 'tsne_2', 'mds_1', 'mds_2', 'cls_lab'])
     out_tb['i_repeats'] = i_repeats
     out_tb['i_comps'] = i_comps
+
+    silhouettes = silhouette_samples(X=dis, labels=ics_pts['cls_lab'].values, metric='precomputed')
+    ics_pts['silhouette'] = silhouettes
 
     out_tb.to_csv(path_or_buf=args.out_dir + '/' + args.exp_prefix + '_ic_cluster.tsv',
                   sep='\t', index=False, header=True)
