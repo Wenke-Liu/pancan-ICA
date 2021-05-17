@@ -36,7 +36,8 @@ def multi_ica(data,
         w_init = np.random.rand(n_components, n_components)
         ica_transformer = FastICA(n_components=n_components,
                                   w_init=w_init,
-                                  whiten=whiten)
+                                  whiten=whiten,
+                                  max_iter=1000)
         s = ica_transformer.fit_transform(data)  # shape: n_genes, n_components
         a = ica_transformer.mixing_  # shape: n_samples, n_components
         s_list.append(s)
@@ -108,21 +109,34 @@ def find_cor(mix, clinical):
     return a raw p value table.
     """
     mix_dat = mix[clinical.index.values]
-    res = []
-    for i in range(mix.shape[0]):
-        row_res = []
-        reg_x = mix.iloc[i, :]
+    pval = []
+    coef = []
+    for i in range(mix_dat.shape[0]):
+        row_pval = []
+        row_coef = []
+        reg_x = mix_dat.iloc[i, :]
         for variable in clinical.columns.values:
             reg_y = clinical[variable]
             dat = pd.concat([reg_x, reg_y], axis=1, join='inner').dropna()
             x = np.array(dat.iloc[:, 0]).astype(float)
             y = np.array(dat.iloc[:, 1]).astype(float)
-            _, _, _, p_value, _ = stats.linregress(x=x, y=y)
-            row_res.append(p_value)
-        res.append(row_res)
+            slope, _, _, p_value, _ = stats.linregress(x=x, y=y)
+            row_coef.append(slope)
+            row_pval.append(p_value)
+        pval.append(row_pval)
+        coef.append(row_coef)
 
-    res = np.array(res)
-    res = pd.DataFrame(res, columns=clinical.columns.values, index=mix.index.values)
-    res = pd.concat([mix[['i_repeats', 'i_comps', 'cluster']], res], axis=1)
-    return res
+    pval = np.array(pval)
+    coef = np.array(coef)
+    pval = pd.DataFrame(pval, columns=clinical.columns.values, index=mix.index.values)
+    pval = pd.concat([mix[['i_repeats', 'i_comps', 'cluster']], pval], axis=1)
+    coef = pd.DataFrame(coef, columns=clinical.columns.values, index=mix.index.values)
+    coef = pd.concat([mix[['i_repeats', 'i_comps', 'cluster']], coef], axis=1)
 
+    return pval, coef
+
+
+def spearman_distance(x, y):
+    rho, _ = stats.spearmanr(x, y)
+    sp_dis = (1 - rho)/2
+    return sp_dis
